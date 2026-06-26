@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/qiankunli/spec-case/schemas/spec-json.schema.json",
+  "title": "spec.json",
+  "description": "The generated artifact produced by specgen and ingested by ccr's SpecBuilder. Indexed by unit-id.",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "description": "The spec + cases bound to one code symbol (the key is its unit-id).",
+    "required": ["cases"],
+    "additionalProperties": false,
+    "properties": {
+      "spec": {
+        "type": "string",
+        "description": "The symbol's contract preamble (natural language). May be empty if only cases exist."
+      },
+      "cases": {
+        "type": "array",
+        "description": "Cases hanging off this symbol — the per-function review checklist.",
+        "items": {
+          "type": "object",
+          "required": ["id"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+            "desc": { "type": "string" },
+            "input": { "type": "string", "description": "NL request shape." },
+            "expect": { "type": "string", "description": "NL expected outcome." },
+            "forbid": { "type": "string", "description": "NL what must not happen." }
+          }
+        }
+      }
+    }
+  },
+  "propertyNames": {
+    "pattern": "^[^:]+::[^:]+$",
+    "description": "Each key is a unit-id: <relpath>::<symbol>."
+  }
+}

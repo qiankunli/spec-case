@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/qiankunli/spec-case/schemas/case.schema.json",
+  "title": "CaseSet",
+  "description": "A case file: an accumulable, shareable git asset of spec/cases bound to code.",
+  "type": "object",
+  "required": ["caseset", "cases"],
+  "additionalProperties": false,
+  "properties": {
+    "caseset": { "type": "string", "description": "CaseSet identifier (kebab-case)." },
+    "focus": { "type": "string", "description": "One-line description of coverage." },
+    "schema_version": { "type": "integer", "default": 1 },
+    "facet_schema": {
+      "type": "object",
+      "description": "Declared vocabulary per facet axis; case.facets validated against it.",
+      "additionalProperties": { "type": "array", "items": { "type": "string" } }
+    },
+    "sources": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/source" }
+    },
+    "cases": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/case" }
+    }
+  },
+  "definitions": {
+    "source": {
+      "type": "object",
+      "description": "A material a case depends on; uri xor content.",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "uri": { "type": "string" },
+        "content": { "type": "string" },
+        "meta": { "type": "object" }
+      },
+      "oneOf": [{ "required": ["uri"] }, { "required": ["content"] }]
+    },
+    "case": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Immutable, CaseSet-unique primary key; cross-run/cross-face alignment."
+        },
+        "input": { "type": "object", "description": "Protocol-agnostic stimulus (schemaless)." },
+        "desc": { "type": "string", "description": "One-line human description; not in case_hash." },
+        "facets": { "type": "object", "additionalProperties": { "type": "string" } },
+        "requires": { "type": "array", "items": { "type": "string" }, "description": "Source names." },
+        "judge": {
+          "type": "object",
+          "description": "Per-face judgment criteria; each face optional, omitted = observe-only.",
+          "additionalProperties": false,
+          "properties": {
+            "e2e": { "type": "object" },
+            "eval": { "type": "object" },
+            "perf": { "type": "object" },
+            "trace": { "type": "object" }
+          }
+        },
+        "binding": {
+          "$ref": "#/definitions/binding",
+          "description": "Code symbol binding — spec-case's distinct extension."
+        }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "description": "Binds this case to a code symbol. See specs/unit-id.",
+      "required": ["unit_id"],
+      "additionalProperties": false,
+      "properties": {
+        "unit_id": {
+          "type": "string",
+          "pattern": "^[^:]+::[^:]+$",
+          "description": "<relpath>::<symbol>, e.g. internal/notebook/handler.go::Service.CreateNotebook"
+        },
+        "spec": {
+          "type": "string",
+          "description": "The symbol's contract preamble; shared by all cases on the same unit_id."
+        }
+      }
+    }
+  }
+}
