@@ -14,6 +14,7 @@ notebook 创建接口:
 @case("duplicate_name", "重复 Name", expect="409", forbid="写入第二条记录")
 @link("docs/tenancy.md")
 @link("app/notebook/api.py::NotebookService.update_notebook")
+@rule("这个 handler 在请求热路径，盯新增的同步 DB 调用")
 async def create_notebook(req: CreateReq) -> Notebook:
     ...
 ```
@@ -21,6 +22,7 @@ async def create_notebook(req: CreateReq) -> Notebook:
 - `@spec(text)` — 0..1 个，该函数的契约前言（被它所有 case 共享）。
 - `@case(id, desc, *, input="", expect="", forbid="", group=...)` — 0..N 个，`id` 必填且 `^[a-z][a-z0-9_]*$`，`desc` 必填；`input` / `expect` / `forbid` 自然语言，build-time 编译成结构化 `input` / `judge`。
 - `@link(ref)` — 0..N 个，作者策展的"改它时该顺带看的东西"：`ref` = 仓库相对 **md 路径** 或 **unit-id**（另一函数），靠有没有 `::` 区分。见 [概念](../docs/concepts.md#link)。
+- `@rule(text)` — 0..N 个，函数级**审查准则**（评审它时盯什么），是 `rule.json` 路径级准则的共置细化；rule 是 reviewer 指令、不是代码已满足的契约（那是 spec）。见 [概念](../docs/concepts.md#rule)。
 
 ## 绑定（unit-id）
 

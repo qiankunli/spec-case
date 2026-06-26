@@ -40,7 +40,17 @@ case 是可积累、可共享的 git 资产。一个 case 文件是一个 **Case
 - 消费方（ccr）注入的是**指针**，内容**按需取**（fetch 那篇 md / 查那个 func 的 spec）——link 只标"该看什么"，不预塞内容。
 - **双链**：正向（函数自己的 see-also）先做；反向 backlink（谁 link 到我）后续从全量 `links` 建反向索引。
 
-关系扩展为：**一个符号 0..1 spec、0..N case、0..N link**。
+## rule
+
+第四个挂在符号上的维度：函数级**审查准则**——评审这个函数时**该盯什么**。
+
+- 它是 `rule.json`（路径级、glob、dir 级粗准则）的**共置细化版**：写在函数上，只管这个函数。
+- 和 spec 别混：**spec = 代码保证什么（契约/事实）**；**rule = 评审时盯什么（reviewer 指令，不一定是代码已满足的事实）**。例：spec=`不跨 tenant`；rule=`这个 handler 在热路径，盯新增的同步 DB 调用`。
+- 消费方（ccr）的 `RuleBuilder` 同时吃两路：函数级 `rule`（走 spec.json）+ 路径级 `rule.json`（走现有 resolver）。
+
+四个维度合起来，就是 ccr 为一个改动函数收集的**四类上下文**——评审时"diff→func→收齐 spec/case/rule/link（能拿到多少逐步迭代）"：
+
+关系：**一个符号 0..1 spec、0..N case、0..N link、0..N rule**。
 
 ## 双消费：黑盒 vs 白盒
 
