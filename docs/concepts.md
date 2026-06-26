@@ -30,6 +30,28 @@ case 是可积累、可共享的 git 资产。一个 case 文件是一个 **Case
 
 `binding` 是关键新增：把"这条 case 断言的是哪个代码符号"升为一等字段，于是绑定可被消费方 key（见 [specs/unit-id/spec.md](../specs/unit-id/spec.md)）。
 
+## link
+
+第三个挂在符号上的维度（和 spec/case 正交，借笔记软件的双链）：一个函数声明**改它时该顺带看的东西**——一篇设计 md，或另一个函数。
+
+- **spec** 答"这个 func 的契约"，**case** 答"具体场景 checklist"，**link** 答"改它时还该看哪"。
+- link 是**作者策展的高信号上下文**，区别于自动发现（如 caller 上溯）——把"动 `create_notebook` 时记得 `update_notebook` 要保持一致"这种部落知识编码进代码，正中"改完不敢保证没坏"。
+- 一个引用 `<ref>` = 仓库相对 **md 路径** 或 **unit-id**（另一函数），靠有没有 `::` 区分。
+- 消费方（ccr）注入的是**指针**，内容**按需取**（fetch 那篇 md / 查那个 func 的 spec）——link 只标"该看什么"，不预塞内容。
+- **双链**：正向（函数自己的 see-also）先做；反向 backlink（谁 link 到我）后续从全量 `links` 建反向索引。
+
+## rule
+
+第四个挂在符号上的维度：函数级**审查准则**——评审这个函数时**该盯什么**。
+
+- 它是 `rule.json`（路径级、glob、dir 级粗准则）的**共置细化版**：写在函数上，只管这个函数。
+- 和 spec 别混：**spec = 代码保证什么（契约/事实）**；**rule = 评审时盯什么（reviewer 指令，不一定是代码已满足的事实）**。例：spec=`不跨 tenant`；rule=`这个 handler 在热路径，盯新增的同步 DB 调用`。
+- 消费方（ccr）的 `RuleBuilder` 同时吃两路：函数级 `rule`（走 spec.json）+ 路径级 `rule.json`（走现有 resolver）。
+
+四个维度合起来，就是 ccr 为一个改动函数收集的**四类上下文**——评审时"diff→func→收齐 spec/case/rule/link（能拿到多少逐步迭代）"：
+
+关系：**一个符号 0..1 spec、0..N case、0..N link、0..N rule**。
+
 ## 双消费：黑盒 vs 白盒
 
 同一份 spec/case 资产，两个方向消费：
