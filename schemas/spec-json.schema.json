@@ -29,6 +29,11 @@
             "forbid": { "type": "string", "description": "NL what must not happen." }
           }
         }
+      },
+      "links": {
+        "type": "array",
+        "description": "Author-curated 'see also' references for this symbol: each is a repo-relative markdown path or a unit-id (another function). Reviewers consult them when changing the symbol; the reviewer fetches the content, the link is just the pointer.",
+        "items": { "type": "string" }
       }
     }
   },

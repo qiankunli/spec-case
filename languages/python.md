@@ -12,12 +12,15 @@ notebook 创建接口:
 """)
 @case("happy_minimal", "只传 Name 应创建成功", expect="201; body.id 非空")
 @case("duplicate_name", "重复 Name", expect="409", forbid="写入第二条记录")
+@link("docs/tenancy.md")
+@link("app/notebook/api.py::NotebookService.update_notebook")
 async def create_notebook(req: CreateReq) -> Notebook:
     ...
 ```
 
 - `@spec(text)` — 0..1 个，该函数的契约前言（被它所有 case 共享）。
 - `@case(id, desc, *, input="", expect="", forbid="", group=...)` — 0..N 个，`id` 必填且 `^[a-z][a-z0-9_]*$`，`desc` 必填；`input` / `expect` / `forbid` 自然语言，build-time 编译成结构化 `input` / `judge`。
+- `@link(ref)` — 0..N 个，作者策展的"改它时该顺带看的东西"：`ref` = 仓库相对 **md 路径** 或 **unit-id**（另一函数），靠有没有 `::` 区分。见 [概念](../docs/concepts.md#link)。
 
 ## 绑定（unit-id）
 
