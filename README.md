@@ -1,6 +1,6 @@
 # spec-case
 
-> The shared source-of-truth for **spec/case assets bound to code**. Consumed white-box by [case-code-review (`ccr`)](https://github.com/qiankunli/case-code-review) and black-box by test/eval/perf harnesses. ｜ 中文: [README.zh-CN.md](./README.zh-CN.md)
+> An **in-code, AI-native annotation system + multi-language toolchain**: markers like `@spec`/`@rule`/`@link` live right on the code, distilled by per-language tools into a machine-readable asset for AI to consume. It is the shared source-of-truth for **spec/case assets bound to code**, used white-box by [case-code-review (`ccr`)](https://github.com/qiankunli/case-code-review) and black-box by test/eval/perf harnesses. ｜ 中文: [README.zh-CN.md](./README.zh-CN.md)
 
 ## What it is
 

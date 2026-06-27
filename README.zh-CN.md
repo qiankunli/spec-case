@@ -1,6 +1,6 @@
 # spec-case
 
-> **绑定到代码的 spec/case 资产**的共享真源。白盒侧被 [case-code-review (`ccr`)](https://github.com/qiankunli/case-code-review) 消费、黑盒侧被 test/eval/perf harness 消费。｜ English: [README.md](./README.md)
+> 一套**代码内的 AI-native 标注体系 + 多语言工具链**：`@spec`/`@rule`/`@link` 这类标记就近长在代码上，由各语言工具抽成机器可读的资产供 AI 消费。它是**绑定到代码的 spec/case 资产**的共享真源，白盒侧被 [case-code-review (`ccr`)](https://github.com/qiankunli/case-code-review) 消费、黑盒侧被 test/eval/perf harness 消费。｜ English: [README.md](./README.md)
 
 ## 这是什么
 
