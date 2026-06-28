@@ -50,4 +50,4 @@ func (s *Service) CreateNotebook(ctx context.Context, req *CreateReq) (*Notebook
 }
 ```
 
-`specgen` 是语言相关工具，按本仓契约在被测仓内实现（不在 spec-case 内）。
+`specgen` 的 Go 参考实现就在本仓 [`go/`](../go/)：`cd go && go build -o specgen .`，跑 `./specgen -root <repo-root> -o spec.json <src-dir>`（`go/ast` 静态扫描 doc 注释里的 marker，不编译 / 不运行被测代码）。
