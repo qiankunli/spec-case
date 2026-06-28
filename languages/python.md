@@ -50,4 +50,4 @@ async def create_notebook(req: CreateReq) -> Notebook:
 }
 ```
 
-`specgen` 是语言相关工具，按本仓契约在被测仓内实现（不在 spec-case 内）。
+`specgen` 的 Python 参考实现就在本仓 [`python/`](../python/)：装饰器从 `spec_case` import，抽取器跑 `python -m spec_case.specgen <src-dir> -o spec.json`（`ast` 静态扫描，不 import / 不运行被测代码）。
