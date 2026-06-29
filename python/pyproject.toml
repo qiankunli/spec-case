@@ -2,8 +2,23 @@
 name = "spec-case"
 version = "0.1.0"
 description = "In-code spec/case/rule/link markers + specgen extractor that compiles them into spec.json (consumed by ccr)."
+readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "Apache-2.0" }
+authors = [{ name = "qiankunli" }]
+keywords = ["spec", "case", "code-review", "markers", "specgen", "ast"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+]
+
+[project.urls]
+Homepage = "https://github.com/qiankunli/spec-case"
+Repository = "https://github.com/qiankunli/spec-case"
+Issues = "https://github.com/qiankunli/spec-case/issues"
 
 [project.scripts]
 specgen = "spec_case.specgen:cli"

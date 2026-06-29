@@ -51,3 +51,24 @@ async def create_notebook(req: CreateReq) -> Notebook:
 ```
 
 `specgen` 的 Python 参考实现就在本仓 [`python/`](../python/)：装饰器从 `spec_case` import，抽取器跑 `python -m spec_case.specgen <src-dir> -o spec.json`（`ast` 静态扫描，不 import / 不运行被测代码）。
+
+## 消费方如何依赖
+
+与 Go 侧不对称：Go 的 marker 是 **doc 注释**（`+spec`），业务代码 import 任何东西都不需要；Python 的 marker 是**真装饰器**（`@spec`），在业务模块 **import 时就执行**，所以业务仓必须真的依赖 `spec_case`、且它要在**任何会 import 该模块的环境里都可导入**（含生产 runtime，不只是 CI）。好在 `spec_case` 零三方依赖、极轻，作为正式依赖成本可忽略。
+
+发布在 PyPI，业务仓一行依赖同时解决两端：
+
+```bash
+uv add spec-case        # 或 pip install spec-case
+```
+
+```python
+from spec_case import spec, case, link, rule
+```
+
+- **markers**：作为 runtime 依赖随之安装，装饰器在 import 时可用。
+- **specgen**：同一个包带的 console script，CI 里直接 `uv run specgen <src-dir> -o spec.json --check`，**无需再加依赖**。`--check` 比对 committed `spec.json` 与当前 marker，漂移（重命名/删除符号、marker 改动）则非零退出——CI 漂移门。
+
+> 不必为此把包拆成两个（markers 包 + specgen 包）：零依赖、specgen 在 runtime 从不被 import，多带一个 `.py` 成本为零。
+
+详见包内 [`python/README.md`](../python/README.md)。
