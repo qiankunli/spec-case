@@ -71,18 +71,18 @@
     },
     "binding": {
       "type": "object",
-      "description": "Binds this case to a code symbol. See specs/unit-id.",
-      "required": ["unit_id"],
+      "description": "Binds this case to a code symbol. See specs/symbol-id.",
+      "required": ["symbol_id"],
       "additionalProperties": false,
       "properties": {
-        "unit_id": {
+        "symbol_id": {
           "type": "string",
           "pattern": "^[^:]+::[^:]+$",
           "description": "<relpath>::<symbol>, e.g. internal/notebook/handler.go::Service.CreateNotebook"
         },
         "spec": {
           "type": "string",
-          "description": "The symbol's contract preamble; shared by all cases on the same unit_id."
+          "description": "The symbol's contract preamble; shared by all cases on the same symbol_id."
         }
       }
     }

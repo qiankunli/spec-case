@@ -3,8 +3,8 @@ sources into spec.json — the artifact ccr's SpecBuilder consumes.
 
 It parses with `ast` and never imports or runs the target code, so the markers
 being no-ops is irrelevant: extraction is purely syntactic. Each entry is keyed
-by its unit-id `<relpath>::<qualname>` (qualname = `func` or `Class.method`,
-matching the unit-id contract and ccr's Python splitter).
+by its symbol-id `<relpath>::<qualname>` (qualname = `func` or `Class.method`,
+matching the symbol-id contract and ccr's Python splitter).
 
 CLI:  python -m spec_case.specgen <src-dir> [-o spec.json] [--root <repo-root>] [--check]
       --check compares against -o and exits 1 if the committed spec.json drifted
@@ -104,7 +104,7 @@ def _visit(node: ast.AST, stack: list[str], relpath: str, out: dict) -> None:
             if entry is not None:
                 qual = ".".join(stack + [child.name])
                 out[f"{relpath}::{qual}"] = entry
-            # nested functions don't get unit-ids (binding is top-level funcs +
+            # nested functions don't get symbol-ids (binding is top-level funcs +
             # class methods, matching ccr's splitter), so don't descend into one.
         elif isinstance(child, ast.ClassDef):
             _visit(child, stack + [child.name], relpath, out)
@@ -112,7 +112,7 @@ def _visit(node: ast.AST, stack: list[str], relpath: str, out: dict) -> None:
 
 def extract_file(src: str, relpath: str) -> dict:
     """Extract the spec.json entries from one Python source string, keyed by
-    unit-id. Returns {} on a syntax error (specgen never fails the build)."""
+    symbol-id. Returns {} on a syntax error (specgen never fails the build)."""
     try:
         tree = ast.parse(src)
     except SyntaxError:
@@ -123,7 +123,7 @@ def extract_file(src: str, relpath: str) -> dict:
 
 
 def extract_tree(src_dir: Path, root: Path) -> dict:
-    """Extract spec.json from every .py under src_dir; unit-id paths are relative
+    """Extract spec.json from every .py under src_dir; symbol-id paths are relative
     to root (the repo root, so keys match ccr's review address space)."""
     out: dict = {}
     for path in sorted(src_dir.rglob("*.py")):
@@ -139,7 +139,7 @@ def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="specgen", description="Extract spec/case/rule/link markers into spec.json.")
     ap.add_argument("src", help="directory to scan for .py files")
     ap.add_argument("-o", "--out", default="-", help="output path (default: stdout)")
-    ap.add_argument("--root", default=None, help="repo root for relpath unit-ids (default: src)")
+    ap.add_argument("--root", default=None, help="repo root for relpath symbol-ids (default: src)")
     ap.add_argument(
         "--check",
         action="store_true",
@@ -167,7 +167,7 @@ def _check(out: str, fresh: dict) -> int:
     """Compare the freshly-extracted index against the committed spec.json at `out`.
 
     Drift means the markers in the code no longer match the committed spec.json —
-    a symbol was renamed/moved (new unit-id), removed, or its markers changed
+    a symbol was renamed/moved (new symbol-id), removed, or its markers changed
     without regenerating. Returns 0 when up to date, 1 on drift, 2 on misuse.
     """
     if out == "-":

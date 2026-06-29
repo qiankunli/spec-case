@@ -3,7 +3,7 @@
 In-code **spec / case / link / rule** markers + **specgen**, the static extractor
 that compiles them into `spec.json` — the artifact [`ccr`](https://github.com/qiankunli/case-code-review)
 consumes. Part of [spec-case](https://github.com/qiankunli/spec-case); see the repo
-for concepts, the unit-id contract, and the Go reference implementation.
+for concepts, the symbol-id contract, and the Go reference implementation.
 
 ## Install
 

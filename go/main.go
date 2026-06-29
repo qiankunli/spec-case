@@ -11,7 +11,7 @@ import (
 
 func main() {
 	out := flag.String("o", "-", "output path (default: stdout)")
-	root := flag.String("root", "", "repo root for relpath unit-ids (default: src)")
+	root := flag.String("root", "", "repo root for relpath symbol-ids (default: src)")
 	check := flag.Bool("check", false, "compare against -o instead of writing; exit 1 if spec.json is out of date (CI drift gate)")
 	flag.Parse()
 	if flag.NArg() != 1 {
@@ -66,7 +66,7 @@ func canonical(v any) ([]byte, error) {
 
 // runCheck compares the freshly-extracted index against the committed spec.json
 // at `out`. Drift means the markers no longer match what's committed — a symbol
-// was renamed/moved (new unit-id), removed, or its markers changed without
+// was renamed/moved (new symbol-id), removed, or its markers changed without
 // regenerating. Returns 0 up-to-date, 1 on drift, 2 on misuse.
 func runCheck(out string, fresh map[string]Entry) int {
 	if out == "-" {

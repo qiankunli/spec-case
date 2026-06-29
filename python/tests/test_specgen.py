@@ -86,7 +86,7 @@ def test_check_up_to_date(tmp_path):
 
 def test_check_reports_drift_on_rename(tmp_path):
     src, out = _gen(tmp_path, 'from spec_case import spec\n@spec("x")\ndef f(): ...\n')
-    # rename the marked function -> its unit-id changes -> committed spec.json is stale
+    # rename the marked function -> its symbol-id changes -> committed spec.json is stale
     (src / "a.py").write_text('from spec_case import spec\n@spec("x")\ndef g(): ...\n')
     assert specgen.main([str(src), "-o", str(out), "--root", str(src), "--check"]) == 1
 
