@@ -68,3 +68,31 @@ def test_markers_are_noops():
     assert spec_case.case("id", "d", expect="200")(fn) is fn
     assert spec_case.link("docs/x.md")(fn) is fn
     assert spec_case.rule("watch X")(fn) is fn
+
+
+def _gen(tmp_path, body):
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "a.py").write_text(body)
+    out = tmp_path / "spec.json"
+    specgen.main([str(src), "-o", str(out), "--root", str(src)])
+    return src, out
+
+
+def test_check_up_to_date(tmp_path):
+    src, out = _gen(tmp_path, 'from spec_case import spec\n@spec("x")\ndef f(): ...\n')
+    assert specgen.main([str(src), "-o", str(out), "--root", str(src), "--check"]) == 0
+
+
+def test_check_reports_drift_on_rename(tmp_path):
+    src, out = _gen(tmp_path, 'from spec_case import spec\n@spec("x")\ndef f(): ...\n')
+    # rename the marked function -> its unit-id changes -> committed spec.json is stale
+    (src / "a.py").write_text('from spec_case import spec\n@spec("x")\ndef g(): ...\n')
+    assert specgen.main([str(src), "-o", str(out), "--root", str(src), "--check"]) == 1
+
+
+def test_check_missing_file_is_drift(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "a.py").write_text('from spec_case import spec\n@spec("x")\ndef f(): ...\n')
+    assert specgen.main([str(src), "-o", str(tmp_path / "nope.json"), "--root", str(src), "--check"]) == 1

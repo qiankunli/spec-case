@@ -6,7 +6,9 @@ being no-ops is irrelevant: extraction is purely syntactic. Each entry is keyed
 by its unit-id `<relpath>::<qualname>` (qualname = `func` or `Class.method`,
 matching the unit-id contract and ccr's Python splitter).
 
-CLI:  python -m spec_case.specgen <src-dir> [-o spec.json] [--root <repo-root>]
+CLI:  python -m spec_case.specgen <src-dir> [-o spec.json] [--root <repo-root>] [--check]
+      --check compares against -o and exits 1 if the committed spec.json drifted
+      from the markers (renamed/removed symbol, changed marker) — a CI gate.
 """
 from __future__ import annotations
 
@@ -138,11 +140,20 @@ def main(argv: list[str]) -> int:
     ap.add_argument("src", help="directory to scan for .py files")
     ap.add_argument("-o", "--out", default="-", help="output path (default: stdout)")
     ap.add_argument("--root", default=None, help="repo root for relpath unit-ids (default: src)")
+    ap.add_argument(
+        "--check",
+        action="store_true",
+        help="compare against -o instead of writing; exit 1 if spec.json is out of date (CI drift gate)",
+    )
     ns = ap.parse_args(argv)
 
     src = Path(ns.src).resolve()
     root = Path(ns.root).resolve() if ns.root else src
     index = extract_tree(src, root)
+
+    if ns.check:
+        return _check(ns.out, index)
+
     text = json.dumps(index, ensure_ascii=False, indent=2, sort_keys=True)
     if ns.out == "-":
         print(text)
@@ -150,6 +161,42 @@ def main(argv: list[str]) -> int:
         Path(ns.out).write_text(text + "\n", encoding="utf-8")
         print(f"specgen: {len(index)} symbol(s) -> {ns.out}", file=sys.stderr)
     return 0
+
+
+def _check(out: str, fresh: dict) -> int:
+    """Compare the freshly-extracted index against the committed spec.json at `out`.
+
+    Drift means the markers in the code no longer match the committed spec.json —
+    a symbol was renamed/moved (new unit-id), removed, or its markers changed
+    without regenerating. Returns 0 when up to date, 1 on drift, 2 on misuse.
+    """
+    if out == "-":
+        print("specgen --check needs -o <spec.json>", file=sys.stderr)
+        return 2
+    path = Path(out)
+    if not path.exists():
+        print(f"specgen --check: {out} does not exist — run specgen to create it", file=sys.stderr)
+        return 1
+    try:
+        committed = json.loads(path.read_text(encoding="utf-8") or "{}")
+    except json.JSONDecodeError as exc:
+        print(f"specgen --check: {out} is not valid JSON: {exc}", file=sys.stderr)
+        return 1
+
+    if committed == fresh:
+        print(f"specgen --check: {out} is up to date ({len(fresh)} symbol(s))", file=sys.stderr)
+        return 0
+
+    print(f"specgen --check: {out} is out of date — run specgen to regenerate:", file=sys.stderr)
+    committed_ids, fresh_ids = set(committed), set(fresh)
+    for uid in sorted(fresh_ids - committed_ids):
+        print(f"  + {uid}  (marked in code, missing from spec.json)", file=sys.stderr)
+    for uid in sorted(committed_ids - fresh_ids):
+        print(f"  - {uid}  (in spec.json, but no such marked symbol — renamed/removed)", file=sys.stderr)
+    for uid in sorted(committed_ids & fresh_ids):
+        if committed[uid] != fresh[uid]:
+            print(f"  ~ {uid}  (markers changed)", file=sys.stderr)
+    return 1
 
 
 def cli() -> None:
