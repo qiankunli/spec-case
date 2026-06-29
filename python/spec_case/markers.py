@@ -38,7 +38,7 @@ def case(
 
 
 def link(ref: str) -> Callable[[F], F]:
-    """A curated "see also" (0..N): a repo-relative md path, or a unit-id."""
+    """A curated "see also" (0..N): a repo-relative md path, or a symbol-id."""
     return _identity
 
 

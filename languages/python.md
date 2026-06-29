@@ -21,14 +21,14 @@ async def create_notebook(req: CreateReq) -> Notebook:
 
 - `@spec(text)` — 0..1 个，该函数的契约前言（被它所有 case 共享）。
 - `@case(id, desc, *, input="", expect="", forbid="", group=...)` — 0..N 个，`id` 必填且 `^[a-z][a-z0-9_]*$`，`desc` 必填；`input` / `expect` / `forbid` 自然语言，build-time 编译成结构化 `input` / `judge`。
-- `@link(ref)` — 0..N 个，作者策展的"改它时该顺带看的东西"：`ref` = 仓库相对 **md 路径** 或 **unit-id**（另一函数），靠有没有 `::` 区分。见 [概念](../docs/concepts.md#link)。
+- `@link(ref)` — 0..N 个，作者策展的"改它时该顺带看的东西"：`ref` = 仓库相对 **md 路径** 或 **symbol-id**（另一函数），靠有没有 `::` 区分。见 [概念](../docs/concepts.md#link)。
 - `@rule(text)` — 0..N 个，函数级**审查准则**（评审它时盯什么），是 `rule.json` 路径级准则的共置细化；rule 是 reviewer 指令、不是代码已满足的契约（那是 spec）。见 [概念](../docs/concepts.md#rule)。
 
-## 绑定（unit-id）
+## 绑定（symbol-id）
 
-装饰器所在函数的 `__qualname__` 决定 unit-id（见 [`specs/unit-id`](../specs/unit-id/spec.md)）：
+装饰器所在函数的 `__qualname__` 决定 symbol-id（见 [`specs/symbol-id`](../specs/symbol-id/spec.md)）：
 
-| 符号 | unit-id |
+| 符号 | symbol-id |
 |------|---------|
 | 模块级 `def create_notebook` @ `app/notebook/api.py` | `app/notebook/api.py::create_notebook` |
 | 方法 `NotebookService.get` @ `app/notebook/api.py` | `app/notebook/api.py::NotebookService.get` |

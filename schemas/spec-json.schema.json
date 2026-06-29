@@ -2,11 +2,11 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/qiankunli/spec-case/schemas/spec-json.schema.json",
   "title": "spec.json",
-  "description": "The generated artifact produced by specgen and ingested by ccr's SpecBuilder. Indexed by unit-id.",
+  "description": "The generated artifact produced by specgen and ingested by ccr's SpecBuilder. Indexed by symbol-id.",
   "type": "object",
   "additionalProperties": {
     "type": "object",
-    "description": "The spec + cases bound to one code symbol (the key is its unit-id).",
+    "description": "The spec + cases bound to one code symbol (the key is its symbol-id).",
     "required": ["cases"],
     "additionalProperties": false,
     "properties": {
@@ -32,7 +32,7 @@
       },
       "links": {
         "type": "array",
-        "description": "Author-curated 'see also' references for this symbol: each is a repo-relative markdown path or a unit-id (another function). Reviewers consult them when changing the symbol; the reviewer fetches the content, the link is just the pointer.",
+        "description": "Author-curated 'see also' references for this symbol: each is a repo-relative markdown path or a symbol-id (another function). Reviewers consult them when changing the symbol; the reviewer fetches the content, the link is just the pointer.",
         "items": { "type": "string" }
       },
       "rules": {
@@ -44,6 +44,6 @@
   },
   "propertyNames": {
     "pattern": "^[^:]+::[^:]+$",
-    "description": "Each key is a unit-id: <relpath>::<symbol>."
+    "description": "Each key is a symbol-id: <relpath>::<symbol>."
   }
 }

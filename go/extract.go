@@ -35,7 +35,7 @@ type Case struct {
 	Forbid string `json:"forbid,omitempty"`
 }
 
-// Entry is one symbol's spec.json entry (keyed by its unit-id).
+// Entry is one symbol's spec.json entry (keyed by its symbol-id).
 type Entry struct {
 	Spec  string   `json:"spec,omitempty"`
 	Cases []Case   `json:"cases"` // required by the schema; may be empty
@@ -134,7 +134,7 @@ func unquote(s string) string {
 
 // symbolOf returns a function's symbol: "Name" for a free function, "Recv.Method"
 // for a method (receiver normalized — pointer and generic params stripped), so
-// the unit-id matches the contract and ccr's Go splitter.
+// the symbol-id matches the contract and ccr's Go splitter.
 func symbolOf(fd *ast.FuncDecl) string {
 	if recv := recvTypeName(fd); recv != "" {
 		return recv + "." + fd.Name.Name
@@ -162,7 +162,7 @@ func recvTypeName(fd *ast.FuncDecl) string {
 	return ""
 }
 
-// extractFile parses Go source and returns spec.json entries keyed by unit-id
+// extractFile parses Go source and returns spec.json entries keyed by symbol-id
 // (<relpath>::<symbol>). Returns nil on a parse error — specgen never fails the
 // build.
 func extractFile(src, relpath string) map[string]Entry {
@@ -184,7 +184,7 @@ func extractFile(src, relpath string) map[string]Entry {
 	return out
 }
 
-// extractTree extracts spec.json from every .go under srcDir; unit-id paths are
+// extractTree extracts spec.json from every .go under srcDir; symbol-id paths are
 // relative to root (the repo root, so keys match ccr's review address space).
 func extractTree(srcDir, root string) (map[string]Entry, error) {
 	out := map[string]Entry{}
