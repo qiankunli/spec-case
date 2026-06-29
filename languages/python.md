@@ -52,6 +52,21 @@ async def create_notebook(req: CreateReq) -> Notebook:
 
 `specgen` 的 Python 参考实现就在本仓 [`python/`](../python/)：装饰器从 `spec_case` import，抽取器跑 `python -m spec_case.specgen <src-dir> -o spec.json`（`ast` 静态扫描，不 import / 不运行被测代码）。
 
+## specgen 怎么识别 marker（按名字 + 形状，不绑 import 来源）
+
+specgen 纯静态扫 `ast`，按装饰器的**表面形态**识别，**不看它 import 自哪里**：
+
+- **名字命中**：裸名 `@spec(...)` 或属性调用 `@m.spec(...)`，名字是 `spec`/`case`/`link`/`rule` 即算（裸 `@spec` 不带括号的不算——marker 都带参数）。
+- **形状取值**：`case` 取位置参 0=`id`、位置参 1=`desc`，`input`/`expect`/`forbid` 取同名 kwarg；且**只读字符串字面量**（变量、f-string、拼接都取不到）。
+
+推论：specgen 是这套 marker **grammar 的静态前端**，识别契约是"名字 + 参数形状"而非 import 来源。因此**任何遵循同一 grammar 的库**——哪怕装饰器 import 自别处、运行时行为不同（如做校验、挂属性供动态枚举）——只要名字与参数形状一致，specgen 都能原样抽成 `spec.json`。grammar 是契约，import 来源不是。
+
+边界（duck-typing 的代价）：
+
+- **别名会漏**：`from x import case as c` 后 `@c(...)` 不识别（表面名字变了）。
+- **同名会被命中**：任何叫 `@case(...)`/`@spec(...)` 的装饰器都会进 `spec.json`，包括无关第三方库或业务自定义的同名装饰器——specgen 不校验来源。
+- **非字面量取不到**：`@case(MY_ID, ...)` 这类首参非字符串字面量，`id` 取空 → 该 case 被跳过。
+
 ## 消费方如何依赖
 
 与 Go 侧不对称：Go 的 marker 是 **doc 注释**（`+spec`），业务代码 import 任何东西都不需要；Python 的 marker 是**真装饰器**（`@spec`），在业务模块 **import 时就执行**，所以业务仓必须真的依赖 `spec_case`、且它要在**任何会 import 该模块的环境里都可导入**（含生产 runtime，不只是 CI）。好在 `spec_case` 零三方依赖、极轻，作为正式依赖成本可忽略。
