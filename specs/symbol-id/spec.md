@@ -12,15 +12,26 @@ symbol-id 必须为 `<relpath>::<symbol>` 两段式。
 
 #### Scenario: 通用结构
 
-- **WHEN** 为任意语言的一个函数计算 symbol-id
+- **WHEN** 为任意语言的一个符号（函数、方法，或类/类型）计算 symbol-id
 - **THEN** `relpath` 是仓库根的相对路径，POSIX 正斜杠分隔
 - **AND** 分隔符固定为 `::`
-- **AND** `symbol` 是该语言下函数的规范名（见各语言 Requirement）
+- **AND** `symbol` 是该语言下该符号的规范名（见各语言 Requirement）
 - **AND** 整串大小写敏感、不做归一化
+
+可绑定的符号是函数、方法与类/类型。四个 marker（`spec`/`case`/`link`/`rule`）挂在其中任一符号上：挂在类/类型上绑定到 `<relpath>::<类型名>`，描述该类型整体（契约 / 用例 / see-also / 用法约束），与该类型内的方法符号同址不同 key。类级 `rule` 常表达"类型级用法约束"（如"仅 per-request"）。
+
+**fqn（跨仓身份）**：symbol-id（relpath）是**仓内** key；每个 spec.json entry 另带一个可选 `fqn`——符号的语言原生全限定名，是**跨仓**引用解析用的 location-independent 身份。当被评审仓引用的是**依赖**（如 framework SDK）里的符号时，依赖的 relpath 在本仓不存在，只有 fqn 两头都认（consumer 由 import 解析到 fqn，dependency 的 spec.json 也以 fqn 标注）。fqn 取法与语言相关，取不到（无包根）则省略——见各语言 Requirement。
+
+#### Scenario: fqn 取法（Go / Python）
+
+- **WHEN** Go 类型 `PhaseEventMiddleware`，其包 import path 为 `github.com/org/framework/common/middleware/trace`
+- **THEN** fqn = `github.com/org/framework/common/middleware/trace.PhaseEventMiddleware`（module path 由 `go.mod` 推导）
+- **WHEN** Python 类 `PhaseEventMiddleware`，模块 `common.middleware.trace`
+- **THEN** fqn = `common.middleware.trace.PhaseEventMiddleware`（点号 import 路径由 `__init__.py` 包链推导）
 
 ### Requirement: Go 符号规范
 
-Go 的 `symbol` 必须能无歧义定位到一个顶层函数或方法。
+Go 的 `symbol` 必须能无歧义定位到一个顶层函数、方法或类型（type）。
 
 #### Scenario: 包级函数
 
@@ -33,9 +44,15 @@ Go 的 `symbol` 必须能无歧义定位到一个顶层函数或方法。
 - **THEN** `symbol` = `Service.CreateNotebook`（接收者去掉指针 `*`，无括号）
 - **AND** symbol-id = `internal/notebook/handler.go::Service.CreateNotebook`
 
+#### Scenario: 类型
+
+- **WHEN** 符号是类型 `type PhaseEventMiddleware struct {...}`，文件 `common/middleware/trace.go`
+- **THEN** `symbol` = `PhaseEventMiddleware`（类型名，无 `struct`/`interface` 关键字）
+- **AND** symbol-id = `common/middleware/trace.go::PhaseEventMiddleware`
+
 ### Requirement: Python 符号规范
 
-Python 的 `symbol` 必须是函数的 `__qualname__`（不含模块）。
+Python 的 `symbol` 必须是符号的 `__qualname__`（不含模块）——函数、方法或类。
 
 #### Scenario: 模块级函数
 
@@ -46,6 +63,12 @@ Python 的 `symbol` 必须是函数的 `__qualname__`（不含模块）。
 
 - **WHEN** 符号是 `NotebookService.get`
 - **THEN** symbol-id = `app/notebook/api.py::NotebookService.get`
+
+#### Scenario: 类
+
+- **WHEN** 符号是类 `class PhaseEventMiddleware:`，文件 `common/middleware/trace.py`
+- **THEN** `symbol` = 类的 `__qualname__`（如 `PhaseEventMiddleware`，嵌套类为 `Outer.Inner`）
+- **AND** symbol-id = `common/middleware/trace.py::PhaseEventMiddleware`
 
 ### Requirement: 基于符号、不基于行号
 

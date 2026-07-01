@@ -37,14 +37,15 @@ type Case struct {
 
 // Entry is one symbol's spec.json entry (keyed by its symbol-id).
 type Entry struct {
+	Fqn   string   `json:"fqn,omitempty"` // importpath.Symbol — location-independent id for cross-repo refs
 	Spec  string   `json:"spec,omitempty"`
 	Cases []Case   `json:"cases"` // required by the schema; may be empty
 	Links []string `json:"links,omitempty"`
 	Rules []string `json:"rules,omitempty"`
 }
 
-// parseMarkers scans a function's doc comment for the markers and builds its
-// entry, or returns ok=false when it carries none. Each marker is one line.
+// parseMarkers scans a doc comment (of a function or a type) for the markers and
+// builds its entry, or returns ok=false when it carries none. Each marker is one line.
 func parseMarkers(doc *ast.CommentGroup) (Entry, bool) {
 	e := Entry{Cases: []Case{}}
 	found := false
@@ -173,21 +174,48 @@ func extractFile(src, relpath string) map[string]Entry {
 	}
 	out := map[string]Entry{}
 	for _, decl := range f.Decls {
-		fd, ok := decl.(*ast.FuncDecl)
-		if !ok || fd.Doc == nil {
-			continue
-		}
-		if e, ok := parseMarkers(fd.Doc); ok {
-			out[relpath+"::"+symbolOf(fd)] = e
+		switch d := decl.(type) {
+		case *ast.FuncDecl:
+			if d.Doc == nil {
+				continue
+			}
+			if e, ok := parseMarkers(d.Doc); ok {
+				out[relpath+"::"+symbolOf(d)] = e
+			}
+		case *ast.GenDecl:
+			// Type declarations: markers on a type (e.g. +rule for a type-wide usage
+			// constraint) bind to <relpath>::TypeName. A single `type X ...` puts the
+			// doc on the GenDecl; a grouped `type ( ... )` puts it on each TypeSpec.
+			if d.Tok != token.TYPE {
+				continue
+			}
+			for _, spec := range d.Specs {
+				ts, ok := spec.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
+				doc := ts.Doc
+				if doc == nil && len(d.Specs) == 1 {
+					doc = d.Doc
+				}
+				if doc == nil {
+					continue
+				}
+				if e, ok := parseMarkers(doc); ok {
+					out[relpath+"::"+ts.Name.Name] = e
+				}
+			}
 		}
 	}
 	return out
 }
 
 // extractTree extracts spec.json from every .go under srcDir; symbol-id paths are
-// relative to root (the repo root, so keys match ccr's review address space).
+// relative to root (the repo root, so keys match ccr's review address space). Each
+// entry's fqn (importpath.Symbol) is resolved from the file's package via go.mod.
 func extractTree(srcDir, root string) (map[string]Entry, error) {
 	out := map[string]Entry{}
+	memo := map[string]goMod{} // go.mod lookups, memoized per start dir
 	err := filepath.WalkDir(srcDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
 			return err
@@ -200,10 +228,75 @@ func extractTree(srcDir, root string) (map[string]Entry, error) {
 		if relErr != nil {
 			return nil
 		}
+		pkg := pkgImportPath(path, memo) // "" when no resolvable go.mod
 		for k, v := range extractFile(string(src), filepath.ToSlash(rel)) {
+			if pkg != "" {
+				if i := strings.Index(k, "::"); i >= 0 {
+					v.Fqn = pkg + "." + k[i+2:] // symbol = the key's ::suffix
+				}
+			}
 			out[k] = v
 		}
 		return nil
 	})
 	return out, err
+}
+
+// goMod is a resolved go.mod: its directory + module path ("" when none found).
+type goMod struct {
+	root string
+	path string
+}
+
+// findGoMod walks up from startDir to the nearest go.mod, memoized per startDir.
+func findGoMod(startDir string, memo map[string]goMod) goMod {
+	if m, ok := memo[startDir]; ok {
+		return m
+	}
+	for d := startDir; ; {
+		if data, err := os.ReadFile(filepath.Join(d, "go.mod")); err == nil {
+			m := goMod{root: d, path: parseModulePath(data)}
+			memo[startDir] = m
+			return m
+		}
+		parent := filepath.Dir(d)
+		if parent == d {
+			break
+		}
+		d = parent
+	}
+	memo[startDir] = goMod{}
+	return goMod{}
+}
+
+// parseModulePath returns the module path from a go.mod's `module` directive.
+func parseModulePath(b []byte) string {
+	for _, line := range strings.Split(string(b), "\n") {
+		if line = strings.TrimSpace(line); strings.HasPrefix(line, "module ") {
+			return strings.TrimSpace(line[len("module "):])
+		}
+	}
+	return ""
+}
+
+// pkgImportPath returns the Go import path of the package containing filerel
+// (module path + dir relative to go.mod), or "" when no go.mod resolves.
+func pkgImportPath(filerel string, memo map[string]goMod) string {
+	abs, err := filepath.Abs(filerel)
+	if err != nil {
+		return ""
+	}
+	dir := filepath.Dir(abs)
+	gm := findGoMod(dir, memo)
+	if gm.path == "" {
+		return ""
+	}
+	rel, err := filepath.Rel(gm.root, dir)
+	if err != nil {
+		return ""
+	}
+	if rel = filepath.ToSlash(rel); rel != "." {
+		return gm.path + "/" + rel
+	}
+	return gm.path
 }

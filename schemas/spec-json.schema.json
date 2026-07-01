@@ -10,6 +10,10 @@
     "required": ["cases"],
     "additionalProperties": false,
     "properties": {
+      "fqn": {
+        "type": "string",
+        "description": "The symbol's language-native fully-qualified name — Python dotted import path (pkg.mod.Symbol), Go import-path.Symbol. The symbol-id key stays repo-relative; fqn is the location-independent identity a consumer repo resolves a cross-repo reference to (e.g. a dependency SDK's type). Optional: emitted only when specgen can resolve the package root (Python __init__.py chain / Go go.mod)."
+      },
       "spec": {
         "type": "string",
         "description": "The symbol's contract preamble (natural language). May be empty if only cases exist."

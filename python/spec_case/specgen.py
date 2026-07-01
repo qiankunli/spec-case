@@ -3,8 +3,10 @@ sources into spec.json — the artifact ccr's SpecBuilder consumes.
 
 It parses with `ast` and never imports or runs the target code, so the markers
 being no-ops is irrelevant: extraction is purely syntactic. Each entry is keyed
-by its symbol-id `<relpath>::<qualname>` (qualname = `func` or `Class.method`,
-matching the symbol-id contract and ccr's Python splitter).
+by its symbol-id `<relpath>::<qualname>` (qualname = `func`, `Class.method`, or a
+`Class` itself for class-level markers — matching the symbol-id contract). Each
+entry also carries `fqn` (the dotted import path, e.g. `pkg.mod.Class`) when
+the module is importable — the location-independent id for cross-repo references.
 
 CLI:  python -m spec_case.specgen <src-dir> [-o spec.json] [--root <repo-root>] [--check]
       --check compares against -o and exits 1 if the committed spec.json drifted
@@ -50,14 +52,16 @@ def _kw(call: ast.Call, name: str) -> ast.expr | None:
     return next((k.value for k in call.keywords if k.arg == name), None)
 
 
-def _entry_for(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> dict | None:
-    """Build the spec.json entry from a function's decorators, or None if it
-    carries no markers."""
+def _entry_for(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef) -> dict | None:
+    """Build the spec.json entry from a function's or class's decorators, or None
+    if it carries no markers. Classes carry the same decorator_list, so a @rule on
+    a class (a type-wide usage constraint, e.g. "per-request only") is extracted
+    just like a function's."""
     spec_text = ""
     cases: list[dict] = []
     links: list[str] = []
     rules: list[str] = []
-    for dec in fn.decorator_list:
+    for dec in node.decorator_list:
         name = _marker_name(dec)
         if name is None:
             continue
@@ -97,28 +101,54 @@ def _entry_for(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> dict | None:
     return entry
 
 
-def _visit(node: ast.AST, stack: list[str], relpath: str, out: dict) -> None:
+def _emit(out: dict, entry: dict | None, relpath: str, qual: str, module_prefix: str) -> None:
+    """Record one symbol's entry under its symbol-id (<relpath>::qual), attaching
+    the dotted fqn (module_prefix.qual) when the module is importable."""
+    if entry is None:
+        return
+    if module_prefix:
+        entry["fqn"] = f"{module_prefix}.{qual}"
+    out[f"{relpath}::{qual}"] = entry
+
+
+def _visit(node: ast.AST, stack: list[str], relpath: str, out: dict, module_prefix: str) -> None:
     for child in ast.iter_child_nodes(node):
         if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            entry = _entry_for(child)
-            if entry is not None:
-                qual = ".".join(stack + [child.name])
-                out[f"{relpath}::{qual}"] = entry
+            _emit(out, _entry_for(child), relpath, ".".join(stack + [child.name]), module_prefix)
             # nested functions don't get symbol-ids (binding is top-level funcs +
             # class methods, matching ccr's splitter), so don't descend into one.
         elif isinstance(child, ast.ClassDef):
-            _visit(child, stack + [child.name], relpath, out)
+            # A class's own markers bind to the class symbol-id (<relpath>::Class) —
+            # e.g. @rule on the class is a type-wide usage constraint, surfaced when
+            # a diff references the type.
+            _emit(out, _entry_for(child), relpath, ".".join(stack + [child.name]), module_prefix)
+            _visit(child, stack + [child.name], relpath, out, module_prefix)
 
 
-def extract_file(src: str, relpath: str) -> dict:
+def _module_prefix(path: Path) -> str:
+    """The dotted importable module for a .py file, from its __init__.py package
+    chain (common/middleware/trace.py -> common.middleware.trace) — the prefix of
+    each symbol's fqn. Best-effort: a file not inside a package (no
+    __init__.py above it) yields just its module stem."""
+    parts: list[str] = [] if path.stem == "__init__" else [path.stem]
+    d = path.parent
+    while (d / "__init__.py").exists():
+        parts.append(d.name)
+        d = d.parent
+    parts.reverse()
+    return ".".join(parts)
+
+
+def extract_file(src: str, relpath: str, module_prefix: str = "") -> dict:
     """Extract the spec.json entries from one Python source string, keyed by
-    symbol-id. Returns {} on a syntax error (specgen never fails the build)."""
+    symbol-id. module_prefix (the file's dotted module) fills each entry's
+    fqn. Returns {} on a syntax error (specgen never fails the build)."""
     try:
         tree = ast.parse(src)
     except SyntaxError:
         return {}
     out: dict = {}
-    _visit(tree, [], relpath, out)
+    _visit(tree, [], relpath, out, module_prefix)
     return out
 
 
@@ -131,7 +161,7 @@ def extract_tree(src_dir: Path, root: Path) -> dict:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        out.update(extract_file(text, path.relative_to(root).as_posix()))
+        out.update(extract_file(text, path.relative_to(root).as_posix(), _module_prefix(path)))
     return out
 
 
