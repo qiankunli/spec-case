@@ -22,16 +22,27 @@ async def create_notebook(req: CreateReq) -> Notebook:
 - `@spec(text)` — 0..1 个，该函数的契约前言（被它所有 case 共享）。
 - `@case(id, desc, *, input="", expect="", forbid="", group=...)` — 0..N 个，`id` 必填且 `^[a-z][a-z0-9_]*$`，`desc` 必填；`input` / `expect` / `forbid` 自然语言，build-time 编译成结构化 `input` / `judge`。
 - `@link(ref)` — 0..N 个，作者策展的"改它时该顺带看的东西"：`ref` = 仓库相对 **md 路径** 或 **symbol-id**（另一函数），靠有没有 `::` 区分。见 [概念](../docs/concepts.md#link)。
-- `@rule(text)` — 0..N 个，函数级**审查准则**（评审它时盯什么），是 `rule.json` 路径级准则的共置细化；rule 是 reviewer 指令、不是代码已满足的契约（那是 spec）。见 [概念](../docs/concepts.md#rule)。
+- `@rule(text)` — 0..N 个，**审查准则**（评审它时盯什么），是 `rule.json` 路径级准则的共置细化；rule 是 reviewer 指令、不是代码已满足的契约（那是 spec）。见 [概念](../docs/concepts.md#rule)。
+
+**四个 marker（`@spec`/`@case`/`@link`/`@rule`）都可挂在类上**，描述该类型整体（契约/用例/see-also/用法约束）。其中类级 `@rule` 尤其常用——表达**类型级用法约束**：不是"改这个类时盯什么"，而是"用到这个类型时盯什么"，供 review 在 diff *引用* 该类型时回溯注入。例：
+
+```python
+@rule("仅 per-request 使用——禁缓存/复用（events 无界累积）")
+class PhaseEventMiddleware:
+    ...
+```
 
 ## 绑定（symbol-id）
 
-装饰器所在函数的 `__qualname__` 决定 symbol-id（见 [`specs/symbol-id`](../specs/symbol-id/spec.md)）：
+装饰器所在符号的 `__qualname__` 决定 symbol-id（见 [`specs/symbol-id`](../specs/symbol-id/spec.md)）：
 
 | 符号 | symbol-id |
 |------|---------|
 | 模块级 `def create_notebook` @ `app/notebook/api.py` | `app/notebook/api.py::create_notebook` |
 | 方法 `NotebookService.get` @ `app/notebook/api.py` | `app/notebook/api.py::NotebookService.get` |
+| 类 `class PhaseEventMiddleware` @ `common/middleware/trace.py` | `common/middleware/trace.py::PhaseEventMiddleware` |
+
+每条 entry 另带可选 `fqn`——点号 import 路径（如 `common.middleware.trace.PhaseEventMiddleware`），由文件的 `__init__.py` 包链推导，作跨仓引用的 location-independent 身份（供 ccr 从依赖包解析 rule）。不在包内（无 `__init__.py`）则退化为模块 stem。
 
 ## 抽取产物
 

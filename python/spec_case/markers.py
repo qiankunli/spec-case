@@ -43,5 +43,7 @@ def link(ref: str) -> Callable[[F], F]:
 
 
 def rule(text: str) -> Callable[[F], F]:
-    """Function-level review criteria (0..N): what to watch for when reviewing it."""
+    """Review criteria (0..N): what to watch for. On a function it's a per-function
+    criterion; on a class it's a type-wide usage constraint (e.g. "per-request
+    only — do not cache/reuse"), surfaced when a diff references the type."""
     return _identity

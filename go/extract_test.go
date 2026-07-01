@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -45,6 +47,79 @@ func TestExtractMarkers(t *testing.T) {
 	}
 	if _, ok := out["app/api.go::Unmarked"]; ok {
 		t.Error("unmarked func should be absent")
+	}
+}
+
+func TestExtractTypeLevelMarkers(t *testing.T) {
+	// +rule on a type declaration → a type-wide usage constraint, keyed by
+	// <relpath>::TypeName. Covers both single and grouped type decls.
+	src := "package p\n\n" +
+		"// PhaseEventMiddleware accumulates events.\n" +
+		"// +spec=`accumulates per-run events; instances hold state`\n" +
+		"// +case:id=reuse_leaks,desc=`reused across requests`,forbid=`events retained across requests`\n" +
+		"// +link=docs/middleware.md\n" +
+		"// +rule=`per-request only — do not cache/reuse (accumulates unbounded state)`\n" +
+		"type PhaseEventMiddleware struct{ events []int }\n\n" +
+		"type (\n" +
+		"\t// +rule=`grouped decl rule`\n" +
+		"\tGrouped struct{ x int }\n" +
+		")\n\n" +
+		"// Plain has no markers.\n" +
+		"type Plain struct{}\n"
+
+	out := extractFile(src, "mw/trace.go")
+
+	e, ok := out["mw/trace.go::PhaseEventMiddleware"]
+	if !ok {
+		t.Fatalf("missing PhaseEventMiddleware; got %v", sortedKeys(out))
+	}
+	// all four markers bind to the type symbol-id
+	if !strings.Contains(e.Spec, "per-run events") {
+		t.Errorf("spec: %q", e.Spec)
+	}
+	if len(e.Cases) != 1 || e.Cases[0].ID != "reuse_leaks" {
+		t.Errorf("cases: %+v", e.Cases)
+	}
+	if len(e.Links) != 1 || e.Links[0] != "docs/middleware.md" {
+		t.Errorf("links: %v", e.Links)
+	}
+	if len(e.Rules) != 1 || !strings.Contains(e.Rules[0], "per-request only") {
+		t.Errorf("rules: %v", e.Rules)
+	}
+	if _, ok := out["mw/trace.go::Grouped"]; !ok {
+		t.Errorf("grouped type decl marker missing; got %v", sortedKeys(out))
+	}
+	if _, ok := out["mw/trace.go::Plain"]; ok {
+		t.Error("unmarked type should be absent")
+	}
+}
+
+func TestExtractTree_FqnFromGoMod(t *testing.T) {
+	// fqn = <module path>/<dir>.<Symbol>, resolved from the file's go.mod.
+	dir := t.TempDir()
+	write := func(rel, content string) {
+		full := filepath.Join(dir, rel)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("go.mod", "module github.com/org/framework\n\ngo 1.21\n")
+	write("common/middleware/trace/trace.go",
+		"package trace\n\n// +rule=`per-request only — do not cache/reuse`\ntype PhaseEventMiddleware struct{ events []int }\n")
+
+	out, err := extractTree(dir, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, ok := out["common/middleware/trace/trace.go::PhaseEventMiddleware"]
+	if !ok {
+		t.Fatalf("missing entry; got %v", sortedKeys(out))
+	}
+	if want := "github.com/org/framework/common/middleware/trace.PhaseEventMiddleware"; e.Fqn != want {
+		t.Errorf("fqn = %q, want %q", e.Fqn, want)
 	}
 }
 

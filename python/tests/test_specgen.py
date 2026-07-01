@@ -27,6 +27,14 @@ class Svc:
     def get(self, id):
         ...
 
+@spec("accumulates per-run events; instances hold state")
+@case("reuse_leaks", "reused across requests", forbid="events retained across requests")
+@link("docs/middleware.md")
+@rule("per-request only — do not cache/reuse (accumulates unbounded state)")
+class PhaseEventMiddleware:
+    def __init__(self):
+        self.events = []
+
 def unmarked():
     ...
 '''
@@ -46,8 +54,42 @@ def test_extract_markers():
     # a method binds to <relpath>::Class.method
     assert out["app/api.py::Svc.get"]["cases"][0]["id"] == "ok"
 
+    # all four markers bind to a class symbol-id <relpath>::Class (type-level)
+    cls = out["app/api.py::PhaseEventMiddleware"]
+    assert cls["spec"] == "accumulates per-run events; instances hold state"
+    assert [c["id"] for c in cls["cases"]] == ["reuse_leaks"]
+    assert cls["links"] == ["docs/middleware.md"]
+    assert cls["rules"] == ["per-request only — do not cache/reuse (accumulates unbounded state)"]
+    # an unmarked class is absent (Svc has no class-level marker, only a method one)
+    assert "app/api.py::Svc" not in out
+
     # an unmarked function is absent
     assert "app/api.py::unmarked" not in out
+
+
+def test_fqn_from_module_prefix():
+    out = specgen.extract_file(SAMPLE, "common/middleware/trace.py", "common.middleware.trace")
+    assert out["common/middleware/trace.py::PhaseEventMiddleware"]["fqn"] == "common.middleware.trace.PhaseEventMiddleware"
+    assert out["common/middleware/trace.py::Svc.get"]["fqn"] == "common.middleware.trace.Svc.get"
+
+
+def test_no_fqn_without_module_prefix():
+    out = specgen.extract_file(SAMPLE, "app/api.py")  # module_prefix defaults ""
+    assert "fqn" not in out["app/api.py::PhaseEventMiddleware"]
+
+
+def test_module_prefix_from_init_chain(tmp_path):
+    mid = tmp_path / "common" / "middleware"
+    mid.mkdir(parents=True)
+    (tmp_path / "common" / "__init__.py").write_text("")
+    (mid / "__init__.py").write_text("")
+    (mid / "trace.py").write_text("")
+    assert specgen._module_prefix(mid / "trace.py") == "common.middleware.trace"
+    # a package's __init__.py is the package module itself (stem dropped)
+    assert specgen._module_prefix(mid / "__init__.py") == "common.middleware"
+    # a file with no package chain → just the stem (best-effort)
+    (tmp_path / "script.py").write_text("")
+    assert specgen._module_prefix(tmp_path / "script.py") == "script"
 
 
 def test_entry_always_has_cases():
